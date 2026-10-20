@@ -1,0 +1,65 @@
+
+erDiagram
+    CUSTOMERS {
+        BIGINT customer_id PK
+        VARCHAR first_name
+        VARCHAR last_name
+        VARCHAR email UK
+        VARCHAR phone_number
+        DATE date_of_birth
+        VARCHAR status
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    ACCOUNTS {
+        BIGINT account_id PK
+        BIGINT customer_id FK
+        VARCHAR account_number UK
+        VARCHAR account_type
+        CHAR currency
+        NUMERIC balance
+        VARCHAR status
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ updated_at
+    }
+
+    TRANSFERS {
+        BIGINT transfer_id PK
+        BIGINT source_account_id FK
+        BIGINT destination_account_id FK
+        NUMERIC amount
+        CHAR currency
+        VARCHAR status
+        VARCHAR reference UK
+        TEXT description
+        TIMESTAMPTZ created_at
+        TIMESTAMPTZ completed_at
+    }
+
+    LEDGER_ENTRIES {
+        BIGINT ledger_entry_id PK
+        BIGINT transfer_id FK
+        BIGINT account_id FK
+        VARCHAR entry_type
+        NUMERIC amount
+        CHAR currency
+        TIMESTAMPTZ created_at
+    }
+
+    AUDIT_LOGS {
+        BIGINT audit_log_id PK
+        BIGINT actor_customer_id FK
+        VARCHAR action
+        VARCHAR entity_type
+        VARCHAR entity_id
+        JSONB details
+        TIMESTAMPTZ created_at
+    }
+
+    CUSTOMERS ||--o{ ACCOUNTS : owns
+    ACCOUNTS ||--o{ TRANSFERS : sends
+    ACCOUNTS ||--o{ TRANSFERS : receives
+    TRANSFERS ||--o{ LEDGER_ENTRIES : records
+    ACCOUNTS ||--o{ LEDGER_ENTRIES : affects
+    CUSTOMERS o|--o{ AUDIT_LOGS : performs
