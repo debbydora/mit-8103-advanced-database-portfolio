@@ -2,72 +2,85 @@
 
 ## Case Study
 
-This portfolio extends the QuickPay fintech database developed in the earlier portfolio activities. It demonstrates how MongoDB can store transaction-event documents alongside a relational PostgreSQL database.
+This portfolio extends the simulated **QuickPay** fintech platform from Portfolios 1–3. PostgreSQL remains the source of truth for accounts, transfers, and the ledger; **MongoDB Atlas** is used for workloads that suit non-relational models, implementing **three NoSQL data models**:
+
+| Model     | Collection              | Use in QuickPay                                                  |
+| --------- | ----------------------- | ---------------------------------------------------------------- |
+| Document  | `transaction_events`    | Transfer event log with polymorphic, nested metadata             |
+| Key-value | `account_balance_cache` | Balance lookups by account number, auto-expiring (TTL)           |
+| Graph     | `transfer_edges`        | Money-flow tracing / circular-flow detection with `$graphLookup` |
 
 ## Objectives
 
-- Implement a document-oriented NoSQL data model.
-- Store and query transaction-event documents in MongoDB.
-- Use filtering and aggregation to analyse transaction events.
-- Explain why MongoDB is suitable for event data and how it complements PostgreSQL.
+- Design a document model with embedding and polymorphic fields.
+- Enforce data quality with `$jsonSchema` validation.
+- Demonstrate index optimisation using `explain()` before and after.
+- Analyse data with aggregation pipelines.
+- Implement key-value and graph models on the same case study.
+- Evaluate MongoDB's suitability compared with PostgreSQL.
 
-## Technologies Used
+## Technologies
 
-- MongoDB Atlas
-- TablePlus
-- Node.js
-- MongoDB Node.js driver
-- dotenv
-
-## Database Structure
-
-- **Database:** `quickpay_nosql`
-- **Collection:** `transaction_events`
-- **Sample data:** `transaction-events.json`
-
-The collection contains three illustrative transaction-event documents representing completed, failed, and pending transactions.
+MongoDB Atlas · Node.js · MongoDB Node.js driver · dotenv · TablePlus
 
 ## Project Files
 
-| File or folder            | Purpose                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------- |
-| `collections.js`          | Connects to MongoDB and runs example queries and aggregations.                     |
-| `transaction-events.json` | Contains the sample transaction-event documents.                                   |
-| `nosql-analysis.md`       | Explains the data model, suitability, comparison with PostgreSQL, and limitations. |
-| `screenshots/`            | Contains evidence of query results, imported documents, and database structure.    |
-| `package.json`            | Defines the Node.js project and dependencies.                                      |
-| `package-lock.json`       | Records dependency versions.                                                       |
-| `.gitignore`              | Excludes environment secrets and unnecessary local files.                          |
-| `.env`                    | Stores the MongoDB connection string locally and must not be committed.            |
+| File                          | Purpose                                                                                                               |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `transaction-events.json`     | Original 3 sample event documents (imported into Atlas).                                                              |
+| `collections.js`              | Stage 1: basic queries and a status aggregation on the sample documents.                                              |
+| `advanced.js`                 | Stage 2: timestamp fix, 2,000 generated events, validation, indexing, aggregations, key-value cache, graph traversal. |
+| `nosql-analysis.md`           | Full design rationale, results, comparison with PostgreSQL, and limitations.                                          |
+| `results/advanced-output.txt` | Captured console output of `advanced.js`.                                                                             |
+| `screenshots/`                | Evidence from the terminal and Atlas/TablePlus.                                                                       |
+| `package.json`                | Dependencies and run scripts.                                                                                         |
+| `.env` (not committed)        | `MONGODB_URI` connection string.                                                                                      |
 
 ## Setup and Execution
 
-1. Install Node.js and npm.
-2. Install the project dependencies using `npm install`.
-3. Create a `.env` file containing the MongoDB Atlas connection string:
+1. `npm install`
+2. Create `.env` containing `MONGODB_URI="your-atlas-connection-string"`.
+3. Ensure Atlas network access allows your IP and the user has read/write access to `quickpay_nosql`.
+4. Import `transaction-events.json` into `quickpay_nosql.transaction_events` (first time only).
+5. Run:
+   - `npm run basic`: Stage 1 queries
+   - `npm run advanced`: Stage 2 (re-runnable; it replaces only the generated `GEN-` events)
 
-   `MONGODB_URI="your-mongodb-connection-string"`
+## Key Results
 
-4. Ensure the Atlas database user has the required database permissions and that the network access configuration permits the connection.
-5. Import `transaction-events.json` into the `transaction_events` collection in the `quickpay_nosql` database if the sample documents have not already been imported.
-6. Run the queries:
+| Test                             | Result                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Timestamp normalisation          | 3 string timestamps converted to BSON `Date`                                                                        |
+| Data volume                      | 2,003 events (3 original + 2,000 generated)                                                                         |
+| Schema validation                | Invalid document (negative amount, bad currency, bad status) **rejected, code 121**                                 |
+| Index `{status:1, timestamp:-1}` | `COLLSCAN + SORT` examining **2,003** docs became `IXSCAN` examining **20** docs, with no in-memory sort            |
+| Aggregations                     | Channel success rates (about 80%); top failure reason `suspected_fraud` (46); monthly volume; iOS 260 / Android 237 |
+| Key-value lookup                 | `EXPRESS_IXSCAN(_id_)`: 1 key, 1 doc, 0 ms; balance ₦149,000 matches PostgreSQL                                     |
+| Graph traversal                  | 90 edges; account 1 reaches all accounts in 1 hop; **circular flow back to account 1 in 2 hops**                    |
+| Data-quality finding             | 1 failed event with `null` failure reason caused by schema drift in the original sample (explained in analysis)     |
 
-   `node collections.js`
+## Evidence
 
-The script should connect to MongoDB and display the results of its configured queries. The database connection string must remain private.
+| Screenshot                              | Shows                                                                             |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| `01-mongo-db-query-results.png`         | Stage 1 query output                                                              |
+| `02-transaction-events-collection.png`  | Imported sample documents                                                         |
+| `03-mongodb-database-structure.png`     | Database and collection structure                                                 |
+| `04-timestamps-and-validations.png`     | Timestamp conversion, 2,000 events inserted, invalid document rejected (code 121) |
+| `05-index-before-after.png`             | `explain()` before (COLLSCAN, 2,003 docs) and after (IXSCAN, 20 docs); index list |
+| `06-aggregations-channels-failures.png` | Channel success rates and failure reasons                                         |
+| `07-aggregations-monthly-device.png`    | Monthly completed volume and device OS breakdown                                  |
+| `08-key-value-cache.png`                | Balance cache lookup via `EXPRESS_IXSCAN(_id_)`                                   |
+| `09-graph-lookup.png`                   | `$graphLookup` reachability and circular-flow detection                           |
+| `10-collections.png`                    | The three collections in `quickpay_nosql`                                         |
+| `11-Indexes.png`                        | Indexes on `transaction_events` in Atlas                                          |
 
-## Suitability and Design Rationale
+## Suitability Summary
 
-MongoDB supports nested documents and flexible fields, which are useful for transaction events with varying metadata. Its query and aggregation features support filtering events by status, amount, and channel, and summarising events by status.
+MongoDB suits QuickPay's **event history** (variable structure, append-only, analytical queries), **caching** (fast key lookups with automatic expiry), and **relationship tracing** (graph traversal for fraud). PostgreSQL remains appropriate for **balances and the ledger**, which require multi-row ACID transactions, foreign keys, and row locking (Portfolio 3). The recommended architecture is **polyglot persistence**, with events published from PostgreSQL after commit.
 
-PostgreSQL remains appropriate for QuickPay's authoritative relational records, financial ledger, foreign-key constraints, and transactional balance updates. MongoDB complements that database by providing a document-oriented model for transaction-event information.
-
-## Testing and Evidence
-
-The implementation was tested against the sample documents imported into MongoDB Atlas. Screenshots in the `screenshots/` folder show the query output, collection documents, and database structure.
-
-The sample dataset is illustrative and does not represent real customer or financial data.
+See `nosql-analysis.md` for the full analysis.
 
 ## Limitations
 
-The implementation uses a small dataset and is intended to demonstrate NoSQL modelling and querying rather than production-scale performance. Production use would require further testing of access controls, resilience, event delivery, data retention, and reconciliation with the authoritative financial ledger.
+Synthetic data (10 accounts, uniform probabilities, fully connected transfer graph); small collection sizes; synchronisation between PostgreSQL and MongoDB is designed but not implemented. The connection string is kept in `.env` and excluded from Git.

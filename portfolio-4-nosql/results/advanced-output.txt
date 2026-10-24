@@ -1,0 +1,107 @@
+Output of `npm run advanced` (advanced.js), run 24 October 2026 against MongoDB Atlas.
+
+============================================================
+1. Normalise timestamps (string -> Date)
+============================================================
+Documents converted: 3
+
+============================================================
+2. Generate 2,000 transaction events
+============================================================
+Previous generated events removed: 0
+Inserted: 2000
+Total documents now: 2003
+
+============================================================
+3. Schema validation
+============================================================
+Validator applied (strict / error).
+Invalid document rejected as expected:
+  code: 121 - Document failed validation
+
+============================================================
+4. Index optimisation with explain()
+============================================================
+BEFORE: {
+  plan: 'SORT <- COLLSCAN',
+  docsExamined: 2003,
+  keysExamined: 0,
+  returned: 20,
+  timeMs: 1
+}
+AFTER:  {
+  plan: 'LIMIT <- FETCH <- IXSCAN(idx_status_timestamp)',
+  docsExamined: 20,
+  keysExamined: 20,
+  returned: 20,
+  timeMs: 1
+}
+
+Indexes on transaction_events:
+  _id_ {"_id":1}
+  idx_status_timestamp {"status":1,"timestamp":-1}
+  uq_event_id {"event_id":1}
+  idx_source_account_timestamp {"source_account.account_id":1,"timestamp":-1}
+
+============================================================
+5a. Volume and success rate by channel
+============================================================
+| channel    | events | success_rate_pct | total_amount |
+| web        | 526    | 80.6             | 65164846.03  |
+| api        | 509    | 79.8             | 62531269.71  |
+| mobile_app | 499    | 80.6             | 60434116.39  |
+| ussd       | 469    | 81               | 55797872.22  |
+
+============================================================
+5b. Failure reasons (fraud / operations monitoring)
+============================================================
+| failure_reason     | count |
+| suspected_fraud    | 46    |
+| account_frozen     | 44    |
+| network_timeout    | 44    |
+| insufficient_funds | 41    |
+| limit_exceeded     | 39    |
+| null               | 1     |
+
+============================================================
+5c. Monthly completed volume
+============================================================
+| month   | transfers | volume      |
+| 2026-07 | 590       | 72152256.78 |
+| 2026-08 | 540       | 65677183.09 |
+| 2026-09 | 481       | 56658246.8  |
+| 2026-10 | 1         | 25000       |
+
+============================================================
+5d. Mobile app events by device OS (nested, optional field)
+============================================================
+| os      | events |
+| Android | 237    |
+| iOS     | 260    |
+
+============================================================
+6. Key-value model: account balance cache (TTL)
+============================================================
+GET SP1000000001 -> {
+  _id: 'SP1000000001',
+  balance: 149000,
+  currency: 'NGN',
+  cached_at: 2026-10-24T15:10:47.643Z
+}
+Lookup plan: {
+  plan: 'EXPRESS_IXSCAN(_id_)',
+  docsExamined: 1,
+  keysExamined: 1,
+  returned: 1,
+  timeMs: 0
+}
+
+============================================================
+7. Graph model: money-flow tracing ($graphLookup)
+============================================================
+Edges (unique account pairs): 90
+Accounts reachable from account 1 within 3 hops:
+| reachable_account | first_reached_at_hop |
+| 2..10             | 1                    |
+| 1                 | 2                    |
+Circular flow detected: funds can return to account 1 in 2 hops.
