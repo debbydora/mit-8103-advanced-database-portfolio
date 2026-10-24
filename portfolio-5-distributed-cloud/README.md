@@ -27,7 +27,10 @@ This portfolio extends the simulated QuickPay fintech platform developed in the 
 | `deployment-test.sql`           | Read-only checks for database connectivity, schema, version, timestamp, and record counts |
 | `cloud-architecture.md`         | Proposed cloud architecture and component responsibilities                                |
 | `distributed-cloud-analysis.md` | Analysis of replication, sharding, availability, and consistency                          |
-| `screenshots/`                  | Evidence captured during cloud database verification                                      |
+| `partitioning.sql`              | Practical range partitioning (by month) and hash partitioning (sharding simulation)       |
+| `partitioning-analysis.md`      | Results and analysis of the partitioning and sharding demonstration                       |
+| `results/`                      | Captured query outputs and execution plans                                                |
+| `screenshots/`                  | Evidence captured during cloud database verification and partitioning tests               |
 
 ## Implementation
 
@@ -58,12 +61,33 @@ These screenshots demonstrate database accessibility at the time of testing. The
 
 `cloud-architecture.md` proposes an architecture that includes a primary database, a potential read replica, backups, monitoring, and recovery procedures.
 
-Replication, sharding, and automatic failover are proposed enhancements unless separately implemented and verified.
+Replication and automatic failover are proposed enhancements. Data distribution was demonstrated practically, as described below.
+
+## Practical Partitioning and Sharding Demonstration
+
+`partitioning.sql` was run against the Render database using the 200,011 transfers from Portfolio 2 (copies only; the live table was not changed). Full analysis: `partitioning-analysis.md`.
+
+| Test                                            | Result                                                                                                                               |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Range partitioning by month                     | 200,011 rows routed automatically into 13 monthly partitions (about 16–17k rows per full month)                                      |
+| Partition pruning (August query)                | Unpartitioned: 934.662 ms, 17,092 pages. Partitioned: **7.880 ms, 291 pages**, scanning only `transfers_2026_08` (about 119× faster) |
+| Data retention (`DETACH PARTITION`)             | 200,011 → 195,813 rows; 4,198 October 2025 rows archived instantly as a separate table                                               |
+| Hash sharding (4 shards by `source_account_id`) | Each account on exactly one shard; shard_1 held 40% (accounts 3 and 5), a **hot shard** caused by few keys                           |
+| Query with shard key                            | Routed to **1 shard**: 82.789 ms, 820 pages                                                                                          |
+| Query without shard key                         | **Scatter-gather across all 4 shards**: 327.395 ms, 2,052 pages                                                                      |
+
+| Screenshot                                                     | Shows                                              |
+| -------------------------------------------------------------- | -------------------------------------------------- |
+| `05-range-partition-distribution.png`                          | Rows per monthly partition                         |
+| `06a-pruning-unpartitioned.png`, `06b-pruning-partitioned.png` | Execution plans before/after partitioning          |
+| `07-1-detach-partition.png`, `07-2-detach-partition.png`       | Row counts before/after detaching the oldest month |
+| `08-shard-distribution.png`                                    | Rows and accounts per hash shard                   |
+| `09a-single-shard-query.png`, `09b-all-shards-query.png`       | Shard routing vs scatter-gather plans              |
 
 ## Limitations
 
-This activity verifies access to a cloud-hosted PostgreSQL database and documents potential distributed database improvements. It does not claim to have implemented a replicated or sharded cluster. Further infrastructure configuration and dedicated testing would be necessary to demonstrate those capabilities.
+This activity verifies access to a cloud-hosted PostgreSQL database, and demonstrates range partitioning and shard placement and routing on a single instance. It does not implement a multi-node replicated or sharded cluster; network latency, node failure, failover, and rebalancing were not tested.
 
 ## Conclusion
 
-The portfolio demonstrates cloud database accessibility and evaluates how distributed database techniques could support QuickPay as it grows. The design prioritises financial data integrity while considering scalability, availability, and recovery.
+The portfolio demonstrates cloud database accessibility and shows, with measured results, how partitioning reduces work through pruning and simplifies retention, and how a shard key determines whether a query touches one shard or all of them. The design prioritises financial data integrity, recommending monthly range partitioning first and account-based sharding only when a single instance can no longer scale, given the distributed-transaction costs for cross-shard transfers.

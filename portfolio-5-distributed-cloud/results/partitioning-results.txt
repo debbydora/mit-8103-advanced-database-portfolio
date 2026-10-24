@@ -1,0 +1,72 @@
+Portfolio 5 - Partitioning results (run 24 October 2026, Render PostgreSQL)
+
+ROW COUNT CHECK
+original_rows = 200011, partitioned_rows = 200011
+
+RANGE PARTITION DISTRIBUTION (transfers_by_month)
+transfers_2025_10   4198   2025-10-24 .. 2025-10-31
+transfers_2025_11  16444   2025-11-01 .. 2025-11-30
+transfers_2025_12  17160   2025-12-01 .. 2025-12-31
+transfers_2026_01  16998   2026-01-01 .. 2026-01-31
+transfers_2026_02  15265   2026-02-01 .. 2026-02-28
+transfers_2026_03  17017   2026-03-01 .. 2026-03-31
+transfers_2026_04  16455   2026-04-01 .. 2026-04-30
+transfers_2026_05  16831   2026-05-01 .. 2026-05-31
+transfers_2026_06  16340   2026-06-01 .. 2026-06-30
+transfers_2026_07  16796   2026-07-01 .. 2026-07-31
+transfers_2026_08  16959   2026-08-01 .. 2026-08-31
+transfers_2026_09  16705   2026-09-01 .. 2026-09-30
+transfers_2026_10  12843   2026-10-01 .. 2026-10-24
+(transfers_2026_11 and transfers_default: empty)
+
+PARTITION PRUNING - August 2026 query
+
+-- BEFORE: unpartitioned quickpay.transfers
+Aggregate  (cost=3266.59..3266.60 rows=1 width=40) (actual time=934.622..934.623 rows=1.00 loops=1)
+  Buffers: shared hit=15081 read=2011 written=14
+  ->  Index Scan using idx_transfers_status_created on transfers  (cost=0.42..3180.06 rows=17306 width=8) (actual time=2.563..929.490 rows=16959.00 loops=1)
+        Index Cond: ((created_at >= '2026-08-01 00:00:00+01'::timestamp with time zone) AND (created_at < '2026-09-01 00:00:00+01'::timestamp with time zone))
+        Index Searches: 11
+        Buffers: shared hit=15081 read=2011 written=14
+Planning:
+  Buffers: shared hit=20 read=1
+Planning Time: 0.207 ms
+Execution Time: 934.662 ms
+
+-- AFTER: partitioned quickpay.transfers_by_month
+Aggregate  (cost=630.17..630.18 rows=1 width=40) (actual time=7.827..7.828 rows=1.00 loops=1)
+  Buffers: shared hit=291
+  ->  Seq Scan on transfers_2026_08 transfers_by_month  (cost=0.00..545.38 rows=16956 width=8) (actual time=0.012..4.685 rows=16959.00 loops=1)
+        Filter: ((created_at >= '2026-08-01 00:00:00+01'::timestamp with time zone) AND (created_at < '2026-09-01 00:00:00+01'::timestamp with time zone))
+        Buffers: shared hit=291
+Planning:
+  Buffers: shared hit=18 read=2
+Planning Time: 0.270 ms
+Execution Time: 7.880 ms
+
+DATA RETENTION - DETACH PARTITION transfers_2025_10
+rows_before_detach      = 200011
+rows_after_detach       = 195813
+rows_in_archived_table  = 4198
+
+HASH PARTITIONING (SHARDING SIMULATION) - transfers_by_account, MODULUS 4
+shard                 row_count  pct   accounts
+transfers_shard_0     40079      20.0  {1}
+transfers_shard_1     79948      40.0  {3,5}
+transfers_shard_2     40280      20.1  {2}
+transfers_shard_3     39704      19.9  {4}
+
+SHARD ROUTING - single shard (WHERE source_account_id = 3)
+Aggregate  (actual time=82.749..82.750 rows=1)
+  Buffers: shared hit=820
+  ->  Seq Scan on transfers_shard_1  (rows=39734) Filter: (source_account_id = 3) Rows Removed by Filter: 40214
+Execution Time: 82.789 ms
+
+SCATTER-GATHER - all shards (WHERE status = 'failed')
+Finalize Aggregate -> Gather (1 worker) -> Partial Aggregate -> Parallel Append
+  Parallel Seq Scan on transfers_shard_1 (buffers 820)
+  Parallel Seq Scan on transfers_shard_2 (buffers 413)
+  Parallel Seq Scan on transfers_shard_0 (buffers 411)
+  Parallel Seq Scan on transfers_shard_3 (buffers 408)
+  Buffers: shared hit=2052
+Execution Time: 327.395 ms
