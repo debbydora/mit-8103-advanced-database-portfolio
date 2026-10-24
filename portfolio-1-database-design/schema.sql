@@ -5,10 +5,11 @@
 -- =====================================================
 
 -- 1. Create a dedicated schema for Quickpay
-CREATE SCHEMA IF NOT EXISTS Quickpay;
+-- so the schema is written in lowercase for consistency.
+CREATE SCHEMA IF NOT EXISTS quickpay;
 
 -- 2. Set the schema for subsequent statements
-SET search_path TO Quickpay, public;
+SET search_path TO quickpay, public;
 
 
 -- =====================================================

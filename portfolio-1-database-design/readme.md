@@ -83,3 +83,16 @@ Any AI assistance used in preparing or reviewing this project should be disclose
 ## Portfolio Evidence
 
 The accompanying design documentation, ER diagram, SQL scripts, and screenshots provide evidence of the database design, implementation, and verification for Portfolio 1.
+
+| Screenshot                    | What it shows                                                 |
+| ----------------------------- | ------------------------------------------------------------- |
+| `Table-record-counts.png`     | Record counts for all five tables after running `seed.sql`.   |
+| `Customer-data.png`           | Sample rows from `customers`.                                 |
+| `Accounts-with-customers.png` | Join of `accounts` and `customers` confirming ownership (FK). |
+| `Transfer-data.png`           | Sample rows from `transfers`.                                 |
+| `Ledger-entries.png`          | Debit/credit ledger entries linked to transfers.              |
+| `Audit-logs.png`              | Sample rows from `audit_logs`.                                |
+| `Constraints-1/2/3.png`       | Primary key, foreign key, unique, and check constraints.      |
+| `Indexes.png`                 | Indexes created by `schema.sql`.                              |
+
+![ER Diagram](er-diagram.png)
