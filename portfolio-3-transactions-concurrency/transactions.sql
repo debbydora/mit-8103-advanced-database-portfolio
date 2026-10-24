@@ -149,3 +149,17 @@ WHERE account_id = 1;
 -- IMPORTANT: Keep this transaction open while testing Session B.
 -- After Session B checks the balance, return here and run ROLLBACK.
 
+-- [Session B] (separate connection, run while Session A is still open)
+-- Expect the last committed balance (150000.0000), not 150001.0000.
+-- SELECT account_id, balance
+-- FROM quickpay.accounts
+-- WHERE account_id = 1;
+
+-- [Session A] Undo the temporary change.
+ROLLBACK;
+
+-- Verify the original balance is restored.
+SELECT account_id, balance
+FROM quickpay.accounts
+WHERE account_id = 1;
+
