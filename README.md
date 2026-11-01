@@ -1,6 +1,7 @@
 # MIT 8103 Advanced Database Systems Portfolio
 
-**Student:** Aladi Adaorah **Session:** 2026/2027, First Semester · **Case study:** QuickPay Fintech Platform
+**Student:** Aladi Adaorah **Session:** 2026/2027, First Semester·
+**Case study:** QuickPay Fintech Platform
 
 ## Selected Organisation
 
