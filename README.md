@@ -26,11 +26,11 @@ The full description is in [`docs/case-study.md`](docs/case-study.md). All data 
 
 ## Documentation
 
-| Document                                                       | What it contains                                                      |
-| -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [`docs/case-study.md`](docs/case-study.md)                     | The company, its users, its data, and what the system does            |
-| [`docs/final-report.md`](docs/final-report.md)                 | A 2–3 page summary of all five portfolios (for submission on the LMS) |
-| [`docs/technical-reflection.md`](docs/technical-reflection.md) | My personal reflection, references, and AI-use declaration            |
+| Document                                                  | What it contains                                           |
+| --------------------------------------------------------- | ---------------------------------------------------------- |
+| [`case-study.md`](docs/case-study.md)                     | The company, its users, its data, and what the system does |
+| [`final-report.md`](docs/final-report.md)                 | A 2–3 page summary of all five portfolios                  |
+| [`technical-reflection.md`](docs/technical-reflection.md) | My personal reflection, references, and AI-use declaration |
 
 ## Tools Used
 
